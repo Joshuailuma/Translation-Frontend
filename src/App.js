@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
 import io from "socket.io-client";
 import { ClipLoader } from "react-spinners";
 import Auth from "./Auth";
-
+import axiosInstance from "./axiosInstance";
 const socket = io("https://prod.mobile.buildwithseamless.co");
 
 function App() {
@@ -65,9 +64,7 @@ function App() {
     formData.append("input_language", inputLanguage);
 
     try {
-      const response = await axios.post("https://prod.mobile.buildwithseamless.co/speech-to-text", formData, {
-        headers: { Authorization: `Bearer ${user}` },
-      });
+      const response = await axiosInstance.post("https://prod.mobile.buildwithseamless.co/speech-to-text", formData);
       setTranscript(response.data.transcript);
       sendTranslation(response.data.transcript);
     } catch (error) {
@@ -78,10 +75,9 @@ function App() {
 
   const sendTranslation = async (text) => {
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         "https://prod.mobile.buildwithseamless.co/translate",
-        { text, target_language: targetLanguage },
-        { headers: { Authorization: `Bearer ${user}` } }
+        { text, target_language: targetLanguage }
       );
       setTranslatedText(response.data.translated_text);
       requestTextToSpeech(response.data.translated_text);
@@ -93,10 +89,9 @@ function App() {
 
   const requestTextToSpeech = async (text) => {
     try {
-      const response = await axios.post(
+      const response = await axiosInstance.post(
         "https://prod.mobile.buildwithseamless.co/text-to-speech",
-        { text, language_code: targetLanguage },
-        { headers: { Authorization: `Bearer ${user}` } }
+        { text, language_code: targetLanguage }
       );
       setAudio(`data:audio/mp3;base64,${response.data.audio}`);
       setLoading(false);
