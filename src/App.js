@@ -4,7 +4,7 @@ import io from "socket.io-client";
 import { ClipLoader } from "react-spinners";
 import Auth from "./Auth";
 
-const socket = io("http://localhost:5000");
+const socket = io("http://3.85.219.223");
 
 function App() {
   const [user, setUser] = useState(localStorage.getItem("token"));
@@ -57,7 +57,7 @@ function App() {
     formData.append("input_language", inputLanguage);
 
     try {
-      const response = await axios.post("http://localhost:5000/speech-to-text", formData, {
+      const response = await axios.post("http://3.85.219.223/speech-to-text", formData, {
         headers: { Authorization: `Bearer ${user}` },
       });
       setTranscript(response.data.transcript);
@@ -71,7 +71,7 @@ function App() {
   const sendTranslation = async (text) => {
     try {
       const response = await axios.post(
-        "http://localhost:5000/translate",
+        "http://3.85.219.223/translate",
         { text, target_language: targetLanguage },
         { headers: { Authorization: `Bearer ${user}` } }
       );
@@ -86,7 +86,7 @@ function App() {
   const requestTextToSpeech = async (text) => {
     try {
       const response = await axios.post(
-        "http://localhost:5000/text-to-speech",
+        "http://3.85.219.223/text-to-speech",
         { text, language_code: targetLanguage },
         { headers: { Authorization: `Bearer ${user}` } }
       );
