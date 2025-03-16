@@ -12,7 +12,7 @@ function Auth({ setUser }) {
     setError("");
 
     try {
-      const url = isLogin ? "http://localhost:5000/login" : "http://localhost:5000/register";
+      const url = isLogin ? "https://prod.mobile.buildwithseamless.co/login" : "https://prod.mobile.buildwithseamless.co/register";
       const response = await axios.post(url, { username, password });
 
       if (isLogin) {
