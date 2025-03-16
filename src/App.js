@@ -15,6 +15,7 @@ function App() {
   const [inputLanguage, setInputLanguage] = useState("en-US");
   const [targetLanguage, setTargetLanguage] = useState("es");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -29,18 +30,24 @@ function App() {
   const startRecording = async () => {
     setLoading(true);
     setAudio(null);
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorderRef.current = new MediaRecorder(stream);
-    mediaRecorderRef.current.ondataavailable = (event) => {
-      audioChunksRef.current.push(event.data);
-    };
-    mediaRecorderRef.current.onstop = async () => {
-      const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-      sendAudioToBackend(audioBlob);
-      audioChunksRef.current = [];
-    };
-    mediaRecorderRef.current.start();
-    setRecording(true);
+     setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        sendAudioToBackend(audioBlob);
+        audioChunksRef.current = [];
+      };
+      mediaRecorderRef.current.start();
+      setRecording(true);
+    } catch (err) {
+      setError("Microphone access denied or unavailable.");
+      setLoading(false);
+    }
   };
 
   const stopRecording = () => {
@@ -52,6 +59,7 @@ function App() {
 
   const sendAudioToBackend = async (audioBlob) => {
     setLoading(true);
+    setError(null);
     const formData = new FormData();
     formData.append("file", audioBlob, "audio.webm");
     formData.append("input_language", inputLanguage);
@@ -63,7 +71,7 @@ function App() {
       setTranscript(response.data.transcript);
       sendTranslation(response.data.transcript);
     } catch (error) {
-      console.error("Error:", error);
+      setError(error.response?.data?.error || "Failed to process audio.");
       setLoading(false);
     }
   };
@@ -78,7 +86,7 @@ function App() {
       setTranslatedText(response.data.translated_text);
       requestTextToSpeech(response.data.translated_text);
     } catch (error) {
-      console.error("Error:", error);
+      setError(error.response?.data?.error || "Translation failed.");
       setLoading(false);
     }
   };
@@ -93,7 +101,7 @@ function App() {
       setAudio(`data:audio/mp3;base64,${response.data.audio}`);
       setLoading(false);
     } catch (error) {
-      console.error("Error:", error);
+      setError(error.response?.data?.error || "Text-to-speech conversion failed.");
       setLoading(false);
     }
   };
@@ -111,90 +119,95 @@ function App() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
       <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-lg">
         <h1 className="text-2xl font-bold text-center text-gray-800 mb-4">Healthcare Translation Web App</h1>
-        <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded">
-          Logout
-        </button>
+        <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded">Logout</button>
 
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-6">
-              <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-lg">
+        {/* Error Message Display */}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded relative my-4">
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="absolute top-0 right-0 px-2 py-1 text-lg font-bold"
+            >
+              &times;
+            </button>
+          </div>
+        )}
 
-                {/* Record Button */}
-                <div className="flex justify-center mb-4">
-                  <button
-                    onClick={recording ? stopRecording : startRecording}
-                    className={`px-6 py-3 rounded-md font-semibold transition w-full sm:w-auto ${
-                      recording ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"
-                    } text-white`}
-                  >
-                    {recording ? "Stop Recording" : "Start Recording"}
-                  </button>
-                </div>
+        {/* Record Button */}
+        <div className="flex justify-center mb-4">
+          <button
+            onClick={recording ? stopRecording : startRecording}
+            className={`px-6 py-3 rounded-md font-semibold transition w-full sm:w-auto ${
+              recording ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"
+            } text-white`}
+          >
+            {recording ? "Stop Recording" : "Start Recording"}
+          </button>
+        </div>
 
-                {/* Loading Spinner */}
-                {loading && (
-                  <div className="flex justify-center my-4">
-                    <ClipLoader color="#3b82f6" size={50} />
-                  </div>
-                )}
+        {/* Loading Spinner */}
+        {loading && (
+          <div className="flex justify-center my-4">
+            <ClipLoader color="#3b82f6" size={50} />
+          </div>
+        )}
 
-                {/* Transcript Box */}
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-700">Transcript:</h3>
-                  <p className="border border-gray-300 p-3 rounded-md bg-gray-50 min-h-[50px] text-gray-800">
-                    {transcript || "No transcript available"}
-                  </p>
-                </div>
+        {/* Transcript Box */}
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-700">Transcript:</h3>
+          <p className="border border-gray-300 p-3 rounded-md bg-gray-50 min-h-[50px] text-gray-800">
+            {transcript || "No transcript available"}
+          </p>
+        </div>
 
-                {/* Translated Text */}
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-700">Translated Text:</h3>
-                  <p className="border border-gray-300 p-3 rounded-md bg-gray-50 min-h-[50px] text-gray-800">
-                    {translatedText || "No translation available"}
-                  </p>
-                </div>
+        {/* Translated Text */}
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-700">Translated Text:</h3>
+          <p className="border border-gray-300 p-3 rounded-md bg-gray-50 min-h-[50px] text-gray-800">
+            {translatedText || "No translation available"}
+          </p>
+        </div>
 
-                  {/* Input Language Selection */}
+        {/* Input Language Selection */}
+                                <div className="mb-4">
+                                  <label className="text-lg font-semibold text-gray-700 block mb-2">Input Language:</label>
+                                  <select
+                                    value={inputLanguage}
+                                    onChange={(e) => setInputLanguage(e.target.value)}
+                                    className="border border-gray-300 p-2 rounded-md w-full bg-white text-gray-800"
+                                  >
+                                    <option value="en-US">English</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                    <option value="de">German</option>
+                                  </select>
+                                </div>
+
+                        {/* Target Language Selection */}
                         <div className="mb-4">
-                          <label className="text-lg font-semibold text-gray-700 block mb-2">Input Language:</label>
+                          <label className="text-lg font-semibold text-gray-700 block mb-2">Target Language:</label>
                           <select
-                            value={inputLanguage}
-                            onChange={(e) => setInputLanguage(e.target.value)}
+                            value={targetLanguage}
+                            onChange={(e) => setTargetLanguage(e.target.value)}
                             className="border border-gray-300 p-2 rounded-md w-full bg-white text-gray-800"
                           >
-                            <option value="en-US">English</option>
+                           <option value="en">English</option>
                             <option value="es">Spanish</option>
                             <option value="fr">French</option>
                             <option value="de">German</option>
                           </select>
                         </div>
 
-                {/* Target Language Selection */}
-                <div className="mb-4">
-                  <label className="text-lg font-semibold text-gray-700 block mb-2">Target Language:</label>
-                  <select
-                    value={targetLanguage}
-                    onChange={(e) => setTargetLanguage(e.target.value)}
-                    className="border border-gray-300 p-2 rounded-md w-full bg-white text-gray-800"
-                  >
-                   <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                    <option value="de">German</option>
-                  </select>
-                </div>
-
-                {/* Audio Playback */}
-                {audio && (
-                  <div className="mt-4">
-                    <h3 className="text-lg font-semibold text-gray-700">Audio Playback:</h3>
-                    <audio controls className="w-full mt-2">
-                      <source src={audio} type="audio/mp3" />
-                    </audio>
-                  </div>
-                )}
-              </div>
-            </div>
-
+        {/* Audio Playback */}
+        {audio && (
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold text-gray-700">Audio Playback:</h3>
+            <audio controls className="w-full mt-2">
+              <source src={audio} type="audio/mp3" />
+            </audio>
+          </div>
+        )}
       </div>
     </div>
   );
